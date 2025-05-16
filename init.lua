@@ -194,6 +194,81 @@ vim.keymap.set('n', '<C-l>', '<C-w><C-l>', { desc = 'Move focus to the right win
 vim.keymap.set('n', '<C-j>', '<C-w><C-j>', { desc = 'Move focus to the lower window' })
 vim.keymap.set('n', '<C-k>', '<C-w><C-k>', { desc = 'Move focus to the upper window' })
 
+-- my stuff start [[
+
+vim.opt.foldmethod = 'marker'
+vim.opt.foldmarker = '[[,]]'
+
+-- Write to file quickly
+vim.api.nvim_set_keymap('n', '<Leader>w', ':w!<CR>', { noremap = true, silent = true })
+
+-- Edit Neovim configuration file
+vim.api.nvim_set_keymap('n', '<Leader>ve', ':e $MYVIMRC<CR>', { noremap = true, silent = true })
+
+-- Source (reload) Neovim configuration file
+vim.api.nvim_set_keymap('n', '<Leader>vs', ':source $MYVIMRC<CR>', { noremap = true, silent = true })
+
+-- Switch between .cpp and .hpp files
+vim.api.nvim_set_keymap('n', '<Leader>hh', ':e %:r.hpp<CR>', { noremap = true, silent = true })
+vim.api.nvim_set_keymap('n', '<Leader>cc', ':e %:r.cpp<CR>', { noremap = true, silent = true })
+
+-- Open files relative to the directory the current file lives in
+vim.api.nvim_set_keymap(
+  'n',
+  '<Leader>ce',
+  ':e <C-R>=expand("%:p:h") . "/"<CR>',
+  { desc = '[e]dit a file in the [c]urrent files directory', noremap = true, silent = true }
+)
+vim.api.nvim_set_keymap(
+  'n',
+  '<Leader>ct',
+  ':tabe <C-R>=expand("%:p:h") . "/"<CR>',
+  { desc = 'open a new [t]ab of a file in the [c]urrent files directory', noremap = true, silent = true }
+)
+vim.api.nvim_set_keymap(
+  'n',
+  '<Leader>cs',
+  ':split <C-R>=expand("%:p:h") . "/"<CR>',
+  { desc = 'open a [s]plit of a file in the [c]urrent files directory', noremap = true, silent = true }
+)
+vim.api.nvim_set_keymap(
+  'n',
+  '<Leader>cv',
+  ':vsplit <C-R>=expand("%:p:h") . "/"<CR>',
+  { desc = 'open a [v]ertical split of a file in the [c]urrent files directory', noremap = true, silent = true }
+)
+
+-- This works because we escape the hash symbol to add make a bash comment
+-- the comment doesn't do anything but vim picks it up in the name of the terminal
+vim.api.nvim_create_user_command('NamedTerminal', function(opts)
+  vim.cmd('terminal bash \\#' .. opts.args)
+end, { nargs = 1 })
+
+-- Map <leader>nt to the NamedTerminal command
+vim.api.nvim_set_keymap('n', '<leader>nt', ':NamedTerminal ', { desc = 'open a terminal with a specified name', noremap = true, silent = false })
+
+local function source_autostart_vim()
+  local root_dir = vim.fn.getcwd() -- Get the root directory where Neovim was started
+  local patterns = { '/*_autostart.vim', '/.*_autostart.vim' } -- Include dotfiles in the search
+  local files = {}
+
+  -- Collect matching files
+  for _, pattern in ipairs(patterns) do
+    local matched = vim.fn.glob(root_dir .. pattern, false, true)
+    vim.list_extend(files, matched)
+  end
+
+  if #files > 0 then
+    vim.cmd('source ' .. files[1]) -- Source the first matching file
+  end
+end
+
+vim.api.nvim_create_autocmd('VimEnter', {
+  callback = source_autostart_vim,
+})
+
+-- my stuff end ]]
+
 -- [[ Basic Autocommands ]]
 --  See `:help lua-guide-autocommands`
 
@@ -748,7 +823,7 @@ require('lazy').setup({
         -- Disable "format_on_save lsp_fallback" for languages that don't
         -- have a well standardized coding style. You can add additional
         -- languages here or re-enable it for the disabled ones.
-        local disable_filetypes = { c = true, cpp = true }
+        local disable_filetypes = { c = true }
         local lsp_format_opt
         if disable_filetypes[vim.bo[bufnr].filetype] then
           lsp_format_opt = 'never'
@@ -762,6 +837,7 @@ require('lazy').setup({
       end,
       formatters_by_ft = {
         lua = { 'stylua' },
+        cpp = { 'clang-format' },
         -- Conform can also run multiple formatters sequentially
         -- python = { "isort", "black" },
         --
