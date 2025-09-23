@@ -247,6 +247,63 @@ end, { nargs = 1 })
 -- Map <leader>nt to the NamedTerminal command
 vim.api.nvim_set_keymap('n', '<leader>nt', ':NamedTerminal ', { desc = 'open a terminal with a specified name', noremap = true, silent = false })
 
+local function to_pascal_case(str)
+  -- normalize separators to spaces
+  str = str:gsub('[_%s-]+', ' ')
+
+  local words = {}
+  for word in str:gmatch '%S+' do
+    local first = word:sub(1, 1):upper()
+    local rest = word:sub(2):lower()
+    table.insert(words, first .. rest)
+  end
+
+  return table.concat(words, '')
+end
+
+-- Converts a string to snake_case (handles acronyms & trailing underscores)
+local function to_snake_case(str)
+  -- Insert underscores for camelCase and PascalCase boundaries
+  str = str
+    :gsub('(%l)(%u)', '%1_%2') -- fooBar -> foo_Bar
+    :gsub('(%u)(%u%l)', '%1_%2') -- HTMLParser -> HTML_Parser
+  -- Replace separators with underscores
+  str = str:gsub('[%s-]+', '_')
+  -- Lowercase everything
+  str = str:lower()
+  -- Trim underscores front/back
+  str = str:gsub('^_+', ''):gsub('_+$', '')
+  return str
+end
+
+-- Replace the current visual selection with transformed text
+local function replace_visual(transform_fn)
+  local _, start_row, start_col, _ = unpack(vim.fn.getpos "'<")
+  local _, end_row, end_col, _ = unpack(vim.fn.getpos "'>")
+
+  start_row = start_row - 1
+  end_row = end_row - 1
+
+  local lines = vim.api.nvim_buf_get_text(0, start_row, start_col, end_row, end_col + 1, {})
+  local text = table.concat(lines, '\n')
+
+  local new_text = transform_fn(text)
+
+  vim.api.nvim_buf_set_text(0, start_row, start_col, end_row, end_col + 1, { new_text })
+end
+
+vim.api.nvim_create_user_command('ToPascalCase', function()
+  replace_visual(to_pascal_case)
+end, { range = true })
+
+vim.api.nvim_create_user_command('ToSnakeCase', function()
+  replace_visual(to_snake_case)
+end, { range = true })
+
+-- Keymaps for quick use in visual mode
+vim.keymap.set('v', '<leader>p', ':ToPascalCase<CR>', { desc = 'Convert selection to PascalCase', silent = true })
+vim.keymap.set('v', '<leader>s', ':ToSnakeCase<CR>', { desc = 'Convert selection to snake_case', silent = true })
+
 local function source_autostart_vim()
   local root_dir = vim.fn.getcwd() -- Get the root directory where Neovim was started
   local patterns = { '/*_autostart.vim', '/.*_autostart.vim' } -- Include dotfiles in the search
@@ -831,13 +888,14 @@ require('lazy').setup({
           lsp_format_opt = 'fallback'
         end
         return {
-          timeout_ms = 500,
+          timeout_ms = 3000,
           lsp_format = lsp_format_opt,
         }
       end,
       formatters_by_ft = {
         lua = { 'stylua' },
         cpp = { 'clang-format' },
+        python = { 'black' },
         -- Conform can also run multiple formatters sequentially
         -- python = { "isort", "black" },
         --
