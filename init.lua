@@ -221,8 +221,8 @@ vim.api.nvim_create_autocmd('TextYankPost', {
 
 -- my stuff start [[
 
-vim.opt.foldmethod = 'marker'
-vim.opt.foldmarker = '[[,]]'
+vim.opt.foldmethod='expr'
+vim.opt.foldexpr='nvim_treesitter#foldexpr()'
 
 -- Write to file quickly
 vim.api.nvim_set_keymap('n', '<Leader>w', ':w!<CR>', { noremap = true, silent = true })
